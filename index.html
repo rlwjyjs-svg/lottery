@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>人类文具研究所 · 粉丝抽奖</title>
+  <link rel="icon" href="favicon.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="favicon.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="favicon.png">
   <!-- 引入 SheetJS 用于解析 Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
@@ -104,9 +107,14 @@
       cursor: pointer;
     }
     .upload-icon {
-      font-size: 24px;
-      margin-bottom: 8px;
+      height: 48px;
+      width: auto;
+      margin: 0 auto 12px;
       display: block;
+      transition: transform .2s;
+    }
+    .upload-section:hover .upload-icon {
+      transform: scale(1.1);
     }
     .upload-text {
       font-size: 14px;
@@ -345,7 +353,7 @@
 
   <!-- 文件上传 -->
   <div class="upload-section" id="uploadBox">
-    <span class="upload-icon">📄</span>
+    <img src="upload_icon.png" class="upload-icon" alt="upload">
     <span class="upload-text" id="uploadStatus">点击或拖拽 <strong>文件</strong> 到这里</span>
     <input type="file" id="fileInput" accept=".xlsx, .xls" onchange="handleFile(event)" />
   </div>
