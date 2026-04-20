@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>人类文具研究所 · 粉丝抽奖</title>
+  <!-- 引入 SheetJS 用于解析 Excel -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+      background: url('bg.webp') no-repeat center center fixed;
+      background-size: cover;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+      color: #1d1d1f;
+    }
+    /* 添加半透明遮罩增强文字可读性 */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.15);
+      z-index: -1;
+    }
+
+    /* ── 顶部标题栏 ── */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+      max-width: 680px;
+      width: 100%;
+    }
+    .header .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #6ec6f5 0%, #a78bfa 100%);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .header .logo {
+      height: 54px;
+      width: auto;
+      margin: 0 auto;
+      display: block;
+    }
+    .header p {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #3a3a3c;
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── 主卡片 ── */
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      padding: 32px 36px;
+      width: 100%;
+      max-width: 680px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    /* ── 文件上传区 ── */
+    .upload-section {
+      border: 2px dashed #d1d1d6;
+      border-radius: 14px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 28px;
+      transition: border-color .2s, background .2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .upload-section:hover {
+      border-color: #6ec6f5;
+      background: rgba(249, 249, 251, 0.5);
+    }
+    .upload-section input[type="file"] {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .upload-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .upload-text {
+      font-size: 14px;
+      color: #6e6e73;
+    }
+    .upload-text strong {
+      color: #6ec6f5;
+    }
+
+    /* ── 设置区 ── */
+    .settings {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .settings label {
+      font-size: 14px;
+      color: #6e6e73;
+      white-space: nowrap;
+    }
+    .settings input[type="number"] {
+      width: 80px;
+      padding: 8px 12px;
+      border: 1.5px solid #d1d1d6;
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s;
+      text-align: center;
+      background: #f9f9fb;
+    }
+    .settings input[type="number"]:focus {
+      border-color: #6ec6f5;
+      background: #fff;
+    }
+    .settings .hint {
+      font-size: 12px;
+      color: #aeaeb2;
+    }
+
+    /* ── 按钮 ── */
+    .btn-draw {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #6ec6f5 0%, #a78bfa 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn-draw:hover { opacity: .9; }
+    .btn-draw:active { transform: scale(.97); }
+    .btn-draw:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-reset {
+      background: none;
+      border: 1.5px solid #d1d1d6;
+      border-radius: 12px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #6e6e73;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+      white-space: nowrap;
+    }
+    .btn-reset:hover { border-color: #aeaeb2; color: #1d1d1f; }
+
+    /* ── 滚动展示区 ── */
+    .roll-area {
+      background: rgba(245, 245, 247, 0.6);
+      border-radius: 14px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      overflow: hidden;
+      position: relative;
+    }
+    .roll-name {
+      font-size: 26px;
+      font-weight: 700;
+      color: #1d1d1f;
+      letter-spacing: 1px;
+      transition: opacity .05s;
+      text-align: center;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+    .finish-img {
+      height: 48px;
+      width: auto;
+      animation: popIn .4s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    .roll-name.idle {
+      font-size: 15px;
+      color: #aeaeb2;
+      font-weight: 400;
+    }
+
+    /* ── 结果区 ── */
+    .result-section {
+      min-height: 40px;
+    }
+    .result-title {
+      font-size: 22px; /* 调大字号以匹配40px高的表情 */
+      font-weight: 800;
+      color: #1d1d1f;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .title-emoji {
+      height: 40px;
+      width: auto;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
+    }
+    .winners-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .winner-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #e8f7ff 0%, #f3eeff 100%);
+      border: 1.5px solid #d6edff;
+      border-radius: 30px;
+      padding: 7px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1d1d1f;
+      animation: popIn .35s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    .winner-chip .num {
+      background: linear-gradient(135deg, #6ec6f5, #a78bfa);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(.7); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── 分割线 ── */
+    .divider {
+      height: 1px;
+      background: rgba(240, 240, 242, 0.5);
+      margin: 24px 0;
+    }
+
+    /* ── 参与者列表 ── */
+    .pool-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+    .pool-toggle .pool-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #aeaeb2;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+    .pool-toggle .pool-count {
+      font-size: 12px;
+      color: #aeaeb2;
+    }
+    .pool-toggle .chevron {
+      font-size: 12px;
+      color: #aeaeb2;
+      transition: transform .2s;
+    }
+    .pool-toggle.open .chevron { transform: rotate(180deg); }
+
+    .pool-list {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .pool-list.visible { display: flex; }
+    .pool-chip {
+      background: rgba(245, 245, 247, 0.6);
+      border-radius: 20px;
+      padding: 5px 13px;
+      font-size: 13px;
+      color: #3a3a3c;
+      transition: background .15s;
+    }
+    .pool-chip.removed {
+      background: rgba(255, 235, 240, 0.8); /* 更清新的淡粉色 */
+      color: #ff6b81;
+      font-weight: 600;
+      border: 1px solid rgba(255, 182, 193, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="badge">粉丝抽奖</div>
+  <img src="logo.png" alt="人类文具研究所" class="logo">
+  <p>共 <strong id="totalCount">0</strong> 位参与者 · 留言多次仅计一次</p>
+</div>
+
+<div class="card">
+
+  <!-- 文件上传 -->
+  <div class="upload-section" id="uploadBox">
+    <span class="upload-icon">📄</span>
+    <span class="upload-text" id="uploadStatus">点击或拖拽 <strong>文件</strong> 到这里</span>
+    <input type="file" id="fileInput" accept=".xlsx, .xls" onchange="handleFile(event)" />
+  </div>
+
+  <!-- 设置 -->
+  <div class="settings">
+    <label for="drawCount">抽取人数</label>
+    <input type="number" id="drawCount" value="1" min="1" max="0" />
+    <span class="hint">最多 <span id="maxHint">0</span> 人</span>
+    <button class="btn-draw" id="btnDraw" onclick="startDraw()" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+      开始抽奖
+    </button>
+    <button class="btn-reset" onclick="resetDraw()">重置</button>
+  </div>
+
+  <!-- 滚动区 -->
+  <div class="roll-area">
+    <div class="roll-name idle" id="rollName">请先上传名单文件</div>
+  </div>
+
+  <!-- 结果 -->
+  <div class="result-section" id="resultSection" style="display:none">
+    <div class="result-title"><img src="emoji.png" class="title-emoji" alt="emoji"> 中奖名单</div>
+    <div class="winners-grid" id="winnersGrid"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 参与者列表 -->
+  <div class="pool-toggle" id="poolToggle" onclick="togglePool()">
+    <span class="pool-label">参与者名单</span>
+    <span>
+      <span class="pool-count" id="poolCountLabel">0 人</span>
+      &nbsp;
+      <span class="chevron">▼</span>
+    </span>
+  </div>
+  <div class="pool-list" id="poolList"></div>
+
+</div>
+
+<script>
+  let ALL_PARTICIPANTS = [];
+  let pool = [];
+  let winners = [];
+  let rolling = false;
+  let rollTimer = null;
+
+  // 处理文件上传
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    document.getElementById('uploadStatus').innerHTML = "正在解析文件...";
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        let sheetName = workbook.SheetNames.find(n => n.includes('评论') || n.includes('留言')) || workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+        
+        if (jsonData.length < 2) throw new Error("文件内容太少。");
+
+        const headerRow = jsonData[0];
+        let nameColIndex = -1;
+        const possibleNames = ['留言者昵称', '昵称', '用户', '姓名', '粉丝'];
+        for (let name of possibleNames) {
+          nameColIndex = headerRow.findIndex(h => h && String(h).includes(name));
+          if (nameColIndex !== -1) break;
+        }
+        
+        if (nameColIndex === -1) throw new Error("未找到昵称列。");
+
+        const names = [];
+        for (let i = 1; i < jsonData.length; i++) {
+          const name = jsonData[i][nameColIndex];
+          if (name && String(name).trim() !== "") names.push(String(name).trim());
+        }
+
+        ALL_PARTICIPANTS = [...new Set(names)];
+        if (ALL_PARTICIPANTS.length === 0) throw new Error("未提取到昵称。");
+
+        pool = [...ALL_PARTICIPANTS];
+        document.getElementById('uploadStatus').innerHTML = `已成功加载 <strong>${ALL_PARTICIPANTS.length}</strong> 位粉丝`;
+        document.getElementById('uploadBox').style.borderColor = '#34c759';
+        document.getElementById('rollName').textContent = '点击「开始抽奖」';
+        document.getElementById('btnDraw').disabled = false;
+        resetDraw();
+      } catch (err) {
+        alert("导入失败: " + err.message);
+        document.getElementById('uploadStatus').innerHTML = "导入失败，请重试";
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function renderPool() {
+    const list = document.getElementById('poolList');
+    list.innerHTML = '';
+    ALL_PARTICIPANTS.forEach(name => {
+      const chip = document.createElement('div');
+      chip.className = 'pool-chip' + (winners.includes(name) ? ' removed' : '');
+      chip.textContent = name;
+      list.appendChild(chip);
+    });
+    const count = ALL_PARTICIPANTS.length;
+    document.getElementById('poolCountLabel').textContent = count + ' 人';
+    document.getElementById('totalCount').textContent = count;
+    document.getElementById('maxHint').textContent = count;
+    document.getElementById('drawCount').max = count;
+  }
+
+  function togglePool() {
+    document.getElementById('poolToggle').classList.toggle('open');
+    document.getElementById('poolList').classList.toggle('visible');
+  }
+
+  function startDraw() {
+    if (rolling || ALL_PARTICIPANTS.length === 0) return;
+    const n = parseInt(document.getElementById('drawCount').value);
+    if (isNaN(n) || n < 1 || n > ALL_PARTICIPANTS.length) { alert('请输入有效人数'); return; }
+
+    rolling = true;
+    document.getElementById('btnDraw').disabled = true;
+    const shuffled = [...ALL_PARTICIPANTS].sort(() => Math.random() - 0.5);
+    const newWinners = shuffled.slice(0, n);
+
+    let elapsed = 0;
+    const duration = 2000; 
+    const interval = 80;
+
+    rollTimer = setInterval(() => {
+      elapsed += interval;
+      const roll = document.getElementById('rollName');
+      roll.classList.remove('idle');
+      roll.textContent = ALL_PARTICIPANTS[Math.floor(Math.random() * ALL_PARTICIPANTS.length)];
+
+      if (elapsed >= duration) {
+        clearInterval(rollTimer);
+        rolling = false;
+        if (newWinners.length === 1) {
+          roll.textContent = newWinners[0];
+        } else {
+          roll.innerHTML = '<img src="finish.png" class="finish-img" alt="抽奖完成">';
+        }
+        winners = [...newWinners]; 
+        renderWinners();
+        renderPool();
+        document.getElementById('btnDraw').disabled = false;
+      }
+    }, interval);
+  }
+
+  function renderWinners() {
+    const section = document.getElementById('resultSection');
+    const grid = document.getElementById('winnersGrid');
+    section.style.display = 'block';
+    grid.innerHTML = '';
+    winners.forEach((name, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'winner-chip';
+      chip.style.animationDelay = (i * 0.05) + 's';
+      chip.innerHTML = `<span class="num">${i + 1}</span>${name}`;
+      grid.appendChild(chip);
+    });
+  }
+
+  function resetDraw() {
+    if (rolling) return;
+    clearInterval(rollTimer);
+    winners = [];
+    rolling = false;
+    const roll = document.getElementById('rollName');
+    roll.className = 'roll-name idle';
+    roll.textContent = ALL_PARTICIPANTS.length > 0 ? '点击「开始抽奖」' : '请先上传名单文件';
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('winnersGrid').innerHTML = '';
+    document.getElementById('btnDraw').disabled = ALL_PARTICIPANTS.length === 0;
+    document.getElementById('drawCount').value = 1;
+    renderPool();
+  }
+</script>
+</body>
+</html>
